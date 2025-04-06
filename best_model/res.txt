@@ -1,0 +1,7 @@
+Class weights: 0.7166666666666667 0.2833333333333333
+Starting testing process...
+Testing: 1iter [00:00, 34.23iter/s, acc=0.867, prec=1, rec=0.5]
+Total testing accuracy: 0.8666666666666667
+Total testing precision: 1.0
+Total testing recall: 0.5
+Test done.

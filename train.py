@@ -164,15 +164,15 @@ def train(num_epochs, device, train_loader, model, criterion, optimizer, work_sa
 
 
 if __name__ == "__main__":
-    MODE = "train"
+    MODE = "test"
     weights_path = "best_model/model_150.pth"
 
     input_size = 512
-    hidden_size = 32
+    hidden_size = 64
     num_layers = 2
     num_classes = 2
-    learning_rate = 0.0001
-    num_epochs = 300
+    learning_rate = 0.001
+    num_epochs = 200
     batch_size = 32
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
