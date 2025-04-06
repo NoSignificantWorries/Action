@@ -23,10 +23,6 @@ def cut_video(input_video_path, output_folder, timestamps, video_name):
         if end_frame > frame_count:
             end_frame = frame_count
 
-        output_video_folder = os.path.join(output_folder, f"{video_name}_clip_{i:3d}")
-        if not os.path.exists(output_video_folder):
-            os.makedirs(output_video_folder)
-        
         output_file_path = os.path.join(output_folder, f"{video_name}_clip_{i:03d}.mp4")
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_file_path, fourcc, fps, (int(cap.get(3)), int(cap.get(4))))
@@ -42,7 +38,7 @@ def cut_video(input_video_path, output_folder, timestamps, video_name):
                 out.write(frame)
 
         out.release()
-        print(f"Element {i} saved in {output_video_folder}")
+        print(f"Element {i} saved in {output_file_path}")
 
     cap.release()
 
@@ -50,7 +46,7 @@ def cut_video(input_video_path, output_folder, timestamps, video_name):
 f = (lambda x: tuple(map(int, x.split(":"))))
 
 if __name__ == "__main__":
-    video_open_dir = "/home/dmitrykarp/Videos/Dataset"
+    video_open_dir = "Dataset"
     annotating_file = "violin_annotations.txt"
     
     input_videos = {}
@@ -75,6 +71,6 @@ if __name__ == "__main__":
     
     for video_name in input_videos.keys():
         input_video = os.path.join(video_open_dir, video_name)
-        output_directory = "video_clips/violin"
+        output_directory = "video_clips_2/violin"
 
         cut_video(input_video, output_directory, input_videos[video_name], video_name)

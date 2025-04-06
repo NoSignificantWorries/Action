@@ -165,14 +165,14 @@ def train(num_epochs, device, train_loader, model, criterion, optimizer, work_sa
 
 if __name__ == "__main__":
     MODE = "test"
-    weights_path = "work/20250406_221426/model_last.pth"
+    weights_path = "work/20250406_234306/model_last.pth"
 
     input_size = 512
-    hidden_size = 128
+    hidden_size = 256
     num_layers = 2
     num_classes = 2
     learning_rate = 0.001
-    num_epochs = 200
+    num_epochs = 400
     batch_size = 32
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -182,10 +182,6 @@ if __name__ == "__main__":
     model = my_model.VideoClassifier(input_size, hidden_size, num_layers, num_classes).to(device)
     if MODE == "test":
         model.load_state_dict(torch.load(weights_path))
-
-    # set optimizer
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     
     # loading data
     data_dir = "dataset_img"
@@ -207,10 +203,18 @@ if __name__ == "__main__":
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    
+    one_class = np.sum(train_dataset.labels) / np.size(train_dataset.labels)
+    print("Class weights:", 1 - one_class, one_class)
+    class_weights = torch.tensor([1 - one_class, one_class], dtype=torch.float).to(device)
+
+    # set optimizer
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     if MODE == "train":
         print("Starting training process...")
-        train(num_epochs, device, train_loader, model, criterion, optimizer, "work", 5)
+        train(num_epochs, device, train_loader, model, criterion, optimizer, "work", 10)
         print("Train done.")
     elif MODE == "test":
         print("Starting testing process...")

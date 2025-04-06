@@ -10,6 +10,7 @@ __pycache__/
 work/
 video_clips/
 dataset_img/
+Dataset/
 
 # C extensions
 *.so
