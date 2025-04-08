@@ -78,17 +78,20 @@ def collate_fn(batch):
     return padded_videos, labels
 
 
-def test(device, test_loader, model):
+def test(device, test_loader, model, criterion):
     model.eval()
-    with tqdm(enumerate(test_loader), desc=f"Testing", unit="iter") as pbar:
+    with tqdm(enumerate(test_loader), desc="Testing", unit="iter") as pbar:
         all_preds = []
         all_labels = []
+        loss_sum = 0
         for i, (videos, labels) in pbar:
             videos = videos.to(device)
             labels = labels.to(device)
 
             outputs = model(videos)
             _, preds = torch.max(outputs, 1)
+            loss = criterion(outputs, labels)
+            loss_sum += loss.item()
 
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
@@ -97,27 +100,34 @@ def test(device, test_loader, model):
             running_precision = precision_score(all_labels, all_preds, average='binary', zero_division=0)
             running_recall = recall_score(all_labels, all_preds, average='binary', zero_division=0)
 
-            pbar.set_postfix({"acc": running_accuracy, "prec": running_precision, "rec": running_recall})
+            pbar.set_postfix({"loss": loss, "acc": running_accuracy, "prec": running_precision, "rec": running_recall})
 
+    loss_sum /= len(test_loader)
     accuracy = accuracy_score(all_labels, all_preds)
     precision = precision_score(all_labels, all_preds, average='binary', zero_division=0)
     recall = recall_score(all_labels, all_preds, average='binary', zero_division=0)
-    
-    print("Total testing accuracy:", accuracy)
-    print("Total testing precision:", precision)
-    print("Total testing recall:", recall)
+
+    return loss_sum, accuracy, precision, recall
     
 
-def train(num_epochs, device, train_loader, model, criterion, optimizer, work_save_directory, save_period=-1):
+def train(num_epochs, device, train_loader, test_loader, model, criterion, optimizer, work_save_directory, val_epoch=3, save_period=-1):
     save_directory = f"{work_save_directory}/{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
     if not os.path.exists(save_directory):
         os.makedirs(save_directory)
 
-    results = {"Loss": [], "Accuracy": [], "Precision": [], "Recall": []}
+    results = {"Train": {"Loss": [], "Accuracy": [], "Precision": [], "Recall": []},
+               "Valid": {"Loss": [], "Accuracy": [], "Precision": [], "Recall": []}}
     for epoch in range(num_epochs):
         all_preds = []
         all_labels = []
         all_loss = 0
+        if epoch % val_epoch == 0:
+            ls, acc, prec, rec = test(device, test_loader, model, criterion)
+            results["Valid"]["Loss"].append(ls)
+            results["Valid"]["Accuracy"].append(acc)
+            results["Valid"]["Precision"].append(prec)
+            results["Valid"]["Recall"].append(rec)
+            model.train()
         with tqdm(enumerate(train_loader), desc=f"Epoch {epoch + 1}/{num_epochs}", unit="iter") as pbar:
             for i, (videos, labels) in pbar:
                 videos = videos.to(device)
@@ -146,10 +156,10 @@ def train(num_epochs, device, train_loader, model, criterion, optimizer, work_sa
         precision = precision_score(all_labels, all_preds, average='binary', zero_division=0)
         recall = recall_score(all_labels, all_preds, average='binary', zero_division=0)
 
-        results["Loss"].append(loss)
-        results["Accuracy"].append(accuracy)
-        results["Precision"].append(precision)
-        results["Recall"].append(recall)
+        results["Train"]["Loss"].append(loss)
+        results["Train"]["Accuracy"].append(accuracy)
+        results["Train"]["Precision"].append(precision)
+        results["Train"]["Recall"].append(recall)
 
         print(f"Epoch {epoch + 1}/{num_epochs}: Loss: {loss:.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}")
         if save_period > 0:
@@ -164,7 +174,7 @@ def train(num_epochs, device, train_loader, model, criterion, optimizer, work_sa
 
 
 if __name__ == "__main__":
-    MODE = "test"
+    MODE = "train"
     weights_path = "best_model/model_150.pth"
 
     input_size = 512
@@ -172,7 +182,7 @@ if __name__ == "__main__":
     num_layers = 2
     num_classes = 2
     learning_rate = 0.001
-    num_epochs = 200
+    num_epochs = 300
     batch_size = 32
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -214,11 +224,15 @@ if __name__ == "__main__":
 
     if MODE == "train":
         print("Starting training process...")
-        train(num_epochs, device, train_loader, model, criterion, optimizer, "work", 10)
+        train(num_epochs, device, train_loader, test_loader, model, criterion, optimizer, "work", 5, 10)
         print("Train done.")
     elif MODE == "test":
         print("Starting testing process...")
-        test(device, test_loader, model)
+        ls, acc, prec, rec = test(device, test_loader, model, criterion)
+        print("Total testing loss:", ls)
+        print("Total testing accuracy:", acc)
+        print("Total testing precision:", prec)
+        print("Total testing recall:", rec)
         print("Test done.")
     else:
         print("ERROR: Unknown mode.")
